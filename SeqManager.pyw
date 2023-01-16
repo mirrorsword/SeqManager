@@ -18,63 +18,65 @@ import shutil
 from functools import total_ordering
 import argparse
 
-import sip
-
-sip.setapi("QString", 2)
-from PyQt4 import QtGui, QtCore
-from PyQt4.QtCore import Qt
+from PyQt6 import QtGui, QtCore, QtWidgets
+from PyQt6.QtCore import Qt
 
 
 def main(path=None):
-    app = QtGui.QApplication(sys.argv)
+    app = QtWidgets.QApplication(sys.argv)
     # dialog = QtGui.QFileDialog()
-    mainWindow = SeqManagerDialog(path)
+    main_window = SeqManagerDialog(path)
 
-    mainWindow.show()
+    main_window.show()
 
-    sys.exit(app.exec_())
+    sys.exit(app.exec())
 
 
-class SeqManagerDialog(QtGui.QMainWindow):
+class SeqManagerDialog(QtWidgets.QMainWindow):
     """
     Main Window for SeqMangager
     """
 
-    def __init__(self, initialDirectory=None):
+    def __init__(self, initial_directory=None):
         super(SeqManagerDialog, self).__init__()
 
         self.setWindowTitle("Sequence Manager")
 
-        self.fileArea = FileArea(initialDirectory)
+        self.fileArea = FileArea(initial_directory)
         self.resize(500, 500)
         self.setupUI()
 
     def setupUI(self):
         self.setCentralWidget(self.fileArea)
-        mainMenu = self.menuBar()
-        editMenu = mainMenu.addMenu("&Edit")
-        editMenu.addAction("Copy", self.fileArea.copyAction)
-        editMenu.addAction("Rename", self.fileArea.renameAction)
-        editMenu.addAction("Delete", self.fileArea.deleteAction)
-        # toolBar = QtGui.QToolBar()
-        # self.addToolBar(Qt.BottomToolBarArea, toolBar)
-        # toolBar.addAction("Copy", self.fileArea.copyAction)
+
+        # main_menu = self.menuBar()
+        # edit_menu = main_menu.addMenu("&Edit")
+        # edit_menu.addAction("Copy", self.fileArea.copyAction)
+        # edit_menu.addAction("Rename", self.fileArea.renameAction)
+        # edit_menu.addAction("Delete", self.fileArea.deleteAction)
+
+        tool_bar = QtWidgets.QToolBar()
+        self.addToolBar(Qt.ToolBarArea.TopToolBarArea, tool_bar)
+        tool_bar.addAction("Copy", self.fileArea.copyAction)
+        tool_bar.addAction("Rename", self.fileArea.renameAction)
+        tool_bar.addAction("Delete", self.fileArea.deleteAction)
 
 
 # noinspection PyArgumentList
-class FileArea(QtGui.QWidget):
+class FileArea(QtWidgets.QWidget):
     def __init__(self, initialDirectory=None):
         super(FileArea, self).__init__()
 
         self.currentItem = None
         self.currentDirectoryWidget = None
-        print initialDirectory
+        print (initialDirectory)
         if initialDirectory is None or not os.path.isdir(initialDirectory):
             initialDirectory = os.getcwd()
 
         self.currentQDir = QtCore.QDir(initialDirectory)
         filters = self.currentQDir.filter()
-        self.currentQDir.setFilter(filters | QtCore.QDir.NoDotAndDotDot)
+
+        self.currentQDir.setFilter(filters | QtCore.QDir.Filter.NoDotAndDotDot)
 
         self.setupUI()
 
@@ -83,37 +85,37 @@ class FileArea(QtGui.QWidget):
         self.updateFiles()
 
     def setupUI(self):
-        layout = QtGui.QVBoxLayout()
+        layout = QtWidgets.QVBoxLayout()
         self.setLayout(layout)
-        topLayout = QtGui.QHBoxLayout()
+        topLayout = QtWidgets.QHBoxLayout()
         layout.addLayout(topLayout)
         # Directory Bar
-        self.currentDirectoryWidget = QtGui.QLineEdit()
-        dirCompleter = QtGui.QCompleter(self)
+        self.currentDirectoryWidget = QtWidgets.QLineEdit()
+        dirCompleter = QtWidgets.QCompleter(self)
         fileSystemModel = QtGui.QFileSystemModel(parent=dirCompleter)
         fileSystemModel.setRootPath(self.currentQDir.absolutePath())
         dirCompleter.setModel(fileSystemModel)
         self.currentDirectoryWidget.setCompleter(dirCompleter)
 
         topLayout.addWidget(self.currentDirectoryWidget)
-        self.upButton = QtGui.QPushButton("Up")
+        self.upButton = QtWidgets.QPushButton("Up")
         topLayout.addWidget(self.upButton)
         # File List
-        self.fileTableWidget = QtGui.QTableWidget()
+        self.fileTableWidget = QtWidgets.QTableWidget()
         layout.addWidget(self.fileTableWidget)
         # COLUMN COUNT
         self.fileTableWidget.setColumnCount(1)
         hHeader = self.fileTableWidget.horizontalHeader()
         vHeader = self.fileTableWidget.verticalHeader()
-        assert isinstance(hHeader, QtGui.QHeaderView)
-        assert isinstance(vHeader, QtGui.QHeaderView)
+        assert isinstance(hHeader, QtWidgets.QHeaderView)
+        assert isinstance(vHeader, QtWidgets.QHeaderView)
         vHeader.hide()
         hHeader.setStretchLastSection(True)
         self.fileTableWidget.setHorizontalHeaderLabels(("Name", "Date"))
-        self.fileTableWidget.setSelectionBehavior(QtGui.QTableWidget.SelectRows)
-        self.fileTableWidget.setSelectionMode(QtGui.QTableWidget.SingleSelection)
+        self.fileTableWidget.setSelectionBehavior(QtWidgets.QTableWidget.SelectionBehavior.SelectRows)
+        self.fileTableWidget.setSelectionMode(QtWidgets.QTableWidget.SelectionMode.SingleSelection)
         self.fileTableWidget.setColumnWidth(0, 300)
-        self.fileTableWidget.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.fileTableWidget.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
 
         # Signals
         self.fileTableWidget.customContextMenuRequested.connect(self.showItemContextMenu)
@@ -129,7 +131,8 @@ class FileArea(QtGui.QWidget):
 
     def deleteAction(self):
         curSqInfo = self.selectedFileSqInfo()
-        if not curSqInfo.isSequence():
+        if not (curSqInfo and curSqInfo.isSequence()):
+            self.warning_message("Please Select a file sequence.")
             return
         pattern = curSqInfo.getLabel()
         directory = curSqInfo.directory
@@ -139,7 +142,8 @@ class FileArea(QtGui.QWidget):
 
     def seqEditAction(self, title, function):
         curSqInfo = self.selectedFileSqInfo()
-        if not curSqInfo.isSequence():
+        if not (curSqInfo and curSqInfo.isSequence()):
+            self.warning_message("Please Select a file sequence.")
             return
         sourcePattern = curSqInfo.getLabel()
         directory = curSqInfo.directory
@@ -151,16 +155,22 @@ class FileArea(QtGui.QWidget):
         function(originalPatternPath, newPatternPath)
         self.updateFiles()
 
+    def warning_message(self, text):
+        warning_message_box = QtWidgets.QMessageBox()
+        warning_message_box.setText(text)
+        warning_message_box.setIcon(QtWidgets.QMessageBox.Icon.Warning)
+        warning_message_box.exec()
+
     def getNewPatternDialog(self, title, originalPattern):
         """Query user for new pattern"""
         newPattern = None
         finished = False
         while finished is False:
-            newPattern, successful = QtGui.QInputDialog.getText(self, title, "Enter New Name", text=originalPattern)
+            newPattern, successful = QtWidgets.QInputDialog.getText(self, title, "Enter New Name", text=originalPattern)
             if successful:
                 if "*" not in newPattern and "#" not in newPattern:
                     warning = 'Please enter a valid filename pattern with "*" or "#"'
-                    QtGui.QMessageBox.critical(self, "Invalid Name", warning)
+                    QtWidgets.QMessageBox.critical(self, "Invalid Name", warning)
                 else:
                     finished = True
             else:
@@ -187,15 +197,16 @@ class FileArea(QtGui.QWidget):
         return item.fileSqInfo
 
     def showItemContextMenu(self, qpoint):
+
         currnetFileInfo = self.selectedFileSqInfo()
-        if not currnetFileInfo.isSequence():
-            return
-        menu = QtGui.QMenu()
-        menu.addAction("Rename", self.renameAction)
-        menu.addAction("Copy", self.copyAction)
-        menu.addAction("Delete", self.deleteAction)
-        globalPos = self.fileTableWidget.mapToGlobal(qpoint)
-        menu.exec_(globalPos)
+        if currnetFileInfo and currnetFileInfo.isSequence():
+            menu = QtWidgets.QMenu()
+            menu.addAction("Rename", self.renameAction)
+            menu.addAction("Copy", self.copyAction)
+            menu.addAction("Delete", self.deleteAction)
+            global_pos = self.fileTableWidget.mapToGlobal(qpoint)
+            menu.exec(global_pos)
+
 
     def changeDir(self, dir):
         if os.path.isdir(dir):
@@ -213,6 +224,8 @@ class FileArea(QtGui.QWidget):
         assert isinstance(item, FileNameTreeWidgetItem)
         if item.fileSqInfo.isDirectory():
             self.changeDir(item.fileSqInfo.path)
+        elif item.fileSqInfo.isSequence():
+            self.renameAction()
 
     def curDirEditingFinished(self):
         text = self.currentDirectoryWidget.text()
@@ -228,11 +241,13 @@ class FileArea(QtGui.QWidget):
         self.fileTableWidget.setRowCount(len(seqs))
         for i, fileSqInfo in enumerate(seqs):
             item = FileNameTreeWidgetItem(fileSqInfo)
-            item.setFlags(Qt.ItemIsEnabled | Qt.ItemIsSelectable)
+            item.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable)
             self.fileTableWidget.setItem(i, 0, item)
 
     def collapseSequences(self, fileInfoList):
+        #RE expressions keyed based on what index they are at when the file name is split by periods
         patternByLocation = {}
+        # dict where the key is the pattern and the value is a list of files that match the pattern.
         filesForPatterns = {}
         filenameList = []
         for fileInfo in fileInfoList:
@@ -243,8 +258,7 @@ class FileArea(QtGui.QWidget):
             if os.path.isdir(filename):
                 continue
             filenameParts = filename.split(".")
-            for i, part in enumerate(filenameParts):
-
+            for i, part in reversed(list(enumerate(filenameParts))):
                 match = re.match(r"(.*?)(\d+)(.*?)", part)
                 if match:
                     prefix, number, postfix = match.groups()
@@ -256,8 +270,11 @@ class FileArea(QtGui.QWidget):
                         filesForPatterns[pattern] = []
                     filesForPatterns[pattern].append((filename, number))
                     patternByLocation[i].add(pattern)
+                    # we only want to match the farthest left pattern so if we find one
+                    # then we break out of the loop.
+                    break
 
-        sqInfos = {}
+        sq_infos_by_pattern = {}
         dir = self.currentQDir.absolutePath()
         keys = sorted(patternByLocation.keys())
         for position in keys:
@@ -265,18 +282,18 @@ class FileArea(QtGui.QWidget):
                 # Skip patterns with a single file
                 if len(filesForPatterns[pattern]) <= 1:
                     continue
-                if pattern not in sqInfos:
+                if pattern not in sq_infos_by_pattern:
                     sqInfo = FileSqInfo(os.path.join(dir, pattern))
-                    sqInfos[pattern] = sqInfo
+                    sq_infos_by_pattern[pattern] = sqInfo
                 else:
-                    sqInfo = sqInfos[pattern]
+                    sqInfo = sq_infos_by_pattern[pattern]
                 for filename, number in filesForPatterns[pattern]:
                     if filename in filenameList:
                         filenameList.remove(filename)  # file will be consolidated so we can remove it from the list
-                        sqInfo.addFile(os.path.join(dir, filename), number)
+                    sqInfo.addFile(os.path.join(dir, filename), number)
 
         individualFiles = [FileSqInfo(os.path.join(dir, x)) for x in filenameList]
-        sequences = sqInfos.values() + individualFiles
+        sequences = list(sq_infos_by_pattern.values()) + individualFiles
         sequences.sort()
         return sequences
 
@@ -290,22 +307,26 @@ def renameSequence(oldPattern, newPattern):
 
 
 def editSequence(function, oldPattern, newPattern):
+    #normcase makes the paths lowercase so it is not good in this case
+    #oldPattern = os.path.normcase(oldPattern)
+    #newPattern = os.path.normcase(newPattern)
     # Get Source Files
-    oldPattern = os.path.normcase(oldPattern)
-    newPattern = os.path.normcase(newPattern)
     confirmedFiles = getFilesForSequence(oldPattern)
     if len(confirmedFiles) == 0:
-        print "No Files To Edit"
+        print("No Files To Edit")
     for filename, number in confirmedFiles:
         destination = formatPatternWithNumber(newPattern, number)
-        print "Files:", os.path.basename(filename), os.path.basename(destination)
+        print("Processing:", os.path.basename(filename), " : ", os.path.basename(destination))
         function(filename, destination)  # rename or copy file
 
 
 def getFilesForSequence(pattern):
     # Get Source Files
     pattern = os.path.normcase(pattern)
-    patternGlob = pattern.replace("#", "?")
+    patternGlob = re.sub(r"#+", "*", pattern)
+    print("PatternGlob: ", patternGlob)
+
+    #patternGlob = pattern.replace("#", "?")
     patternGlob = os.path.normcase(patternGlob)
     potentialFiles = glob.glob(patternGlob)
     patternRE = patternToRE(pattern)
@@ -313,7 +334,7 @@ def getFilesForSequence(pattern):
     for filepath in potentialFiles:
         filepath = os.path.normcase(filepath)
         match = re.match(patternRE, filepath)
-        print repr(patternRE), repr(filepath), match is not None
+        #print(repr(patternRE), repr(filepath), match is not None)
         if match:
             number = match.group(1)
             confirmedFiles.append((filepath, number))
@@ -322,9 +343,8 @@ def getFilesForSequence(pattern):
 
 def deleteSequence(pattern):
     files = getFilesForSequence(pattern)
-    print files
     for f, number in files:
-        print "removing: ", f
+        print("removing: ", f)
         os.remove(f)
 
 
@@ -348,7 +368,7 @@ def formatPatternWithNumber(pattern, number):
     elif "#" in pattern:
         match = re.match("(.*?)(#+)(.*)", pattern)
         start, wildcard, end = match.groups()
-        print "Parts:", start, wildcard, end
+        # print("Parts:", start, wildcard, end)
         length = len(wildcard)  # determine correct padding
         numberText = str(int(number)).zfill(length)  # convert number to correct padding
         # print wildcard, number, numberText
@@ -359,13 +379,10 @@ def formatPatternWithNumber(pattern, number):
 
 
 def patternToRE(pattern):
-    pattern = re.escape(pattern)
-    print pattern
-    # pattern = pattern.replace(r"\*", r"(\d+)")
-    # match = re.match(r"(.*?)\\")
-    pattern = re.sub(r"((?:\\#)+)", r"(\d+)", pattern)
-    print pattern
-    return pattern
+    pattern_parts = re.split("#+", pattern)
+    re_pattern = re.escape(pattern_parts[0]) + r"(\d+)" + re.escape(pattern_parts[1]);
+
+    return re_pattern
 
 
 @total_ordering
@@ -377,7 +394,9 @@ class FileSqInfo(object):
 
         self.files = []
 
+        # number of digits in the file sequences' numbers.
         self.padWidth = None
+
 
         if os.path.isdir(path):
             self.type = "directory"
@@ -406,9 +425,13 @@ class FileSqInfo(object):
         if not self.isSequence():
             return self.filename
         else:
-            assert self.padWidth is not None, "Pattern {0} has no files".format(self.filename)
-            wildcard = "#" * self.padWidth
-            return self.filename.replace("*", wildcard)
+            if self.padWidth:
+                #TODO: enable assert again
+                #assert self.padWidth is not None, "Pattern {0} has no files".format(self.filename)
+                wildcard = "#" * self.padWidth
+                return self.filename.replace("*", wildcard)
+            else:
+                return self.filename
 
     def __lt__(self, other):
         return self.filename < other.filename
@@ -420,7 +443,7 @@ class FileSqInfo(object):
 # class RenameDialog(QtGui.QDialogButtonBox)
 
 
-class FileNameTreeWidgetItem(QtGui.QTableWidgetItem):
+class FileNameTreeWidgetItem(QtWidgets.QTableWidgetItem):
     def __init__(self, fileSqInfo):
         name = fileSqInfo.getLabel()
         self.fileSqInfo = fileSqInfo

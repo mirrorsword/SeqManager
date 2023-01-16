@@ -8,6 +8,10 @@ choose to rename or copy you will need to enter a new name. This name needs to c
 will be replaced with the file number. multiple pound signs in a row can be used to specify the padding for the numbers.
 """
 
+# TODO: add confirmation dialog when renaming a sequence to a pattern that matches an existing sequence.
+# TODO: make tool bar grayed out when a sequence is not selected.
+# TODO: sort file list so directories are always above files.
+
 __author__ = 'JamesLittlejohn'
 
 import argparse
@@ -436,9 +440,6 @@ class FileSqInfo(object):
 
     def __eq__(self, other):
         return self.filename == other.filename
-
-
-# class RenameDialog(QtGui.QDialogButtonBox)
 
 
 class FileNameTreeWidgetItem(QtWidgets.QTableWidgetItem):

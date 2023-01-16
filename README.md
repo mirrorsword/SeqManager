@@ -19,4 +19,4 @@ further down is file list, which shows the files and directories in the current 
 
 When you rename or copy a sequence you can change the number of # symbols in the file name and that will control how many zeros the frame number is padded with.
 
-<img src="documentation/images/Screenshot01.png" title="Seq Manager Copy">
+<img src="documentation/images/Screenshot02.png" title="Seq Manager Copy">
